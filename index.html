@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>STRIVE — AI Lecture Tutor</title>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body { height:100%; overflow:hidden; }
+body { font-family: 'Geist', -apple-system, BlinkMacSystemFont, sans-serif; background: #f5f5f0; color: #1a1a1a; display: flex; height: 100vh; }
+.sidebar { width: 260px; background: #efefeb; border-right: 1px solid #e0e0d8; display: flex; flex-direction: column; flex-shrink: 0; height: 100vh; }
+.sidebar-top { padding: 14px 12px 10px; display: flex; align-items: center; justify-content: space-between; }
+.logo { display: flex; align-items: center; gap: 8px; }
+.logo-text { font-size: 16px; font-weight: 700; letter-spacing: -0.03em; color: #1a1a1a; }
+.new-chat-btn { margin: 4px 8px 8px; padding: 9px 12px; border-radius: 8px; border: none; background: transparent; cursor: pointer; display: flex; align-items: center; gap: 10px; color: #1a1a1a; font-family: inherit; font-size: 14px; font-weight: 500; transition: background 0.15s; width: calc(100% - 16px); }
+.new-chat-btn:hover { background: #e0e0d8; }
+.sidebar-section-label { padding: 8px 14px 5px; font-size: 11px; font-weight: 600; color: #999; letter-spacing: 0.05em; text-transform: uppercase; }
+.chat-history { flex: 1; overflow-y: auto; padding: 0 8px; }
+.history-item { padding: 9px 10px; border-radius: 8px; cursor: pointer; font-size: 13px; color: #444; transition: background 0.12s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.history-item:hover { background: #e4e4dc; color: #1a1a1a; }
+.history-item.active { background: #e0e0d8; color: #1a1a1a; font-weight: 500; }
+.sidebar-bottom { padding: 12px; border-top: 1px solid #e0e0d8; }
+.user-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 10px; cursor: pointer; transition: background 0.15s; }
+.user-row:hover { background: #e4e4dc; }
+.user-avatar { width: 30px; height: 30px; border-radius: 50%; background: #7bbfea; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: white; flex-shrink: 0; }
+.user-name { font-size: 13px; font-weight: 600; }
+.user-email { font-size: 11px; color: #999; }
+.theme-toggle { width: 28px; height: 28px; border-radius: 7px; border: none; background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #888; transition: background 0.15s, color 0.15s; flex-shrink: 0; }
+.theme-toggle:hover { background: #e0e0d8; color: #1a1a1a; }
+.main { flex: 1; display: flex; flex-direction: column; height: 100vh; background: #f5f5f0; min-width: 0; }
+.top-tabs { display: flex; align-items: center; padding: 10px 20px 0; gap: 4px; border-bottom: 1px solid #e0e0d8; background: #f5f5f0; flex-shrink: 0; }
+.tab { padding: 8px 16px; font-size: 13px; font-weight: 500; color: #888; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; border-radius: 6px 6px 0 0; transition: all 0.15s; display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.tab:hover { color: #1a1a1a; background: #eceae4; }
+.tab.active { color: #1a1a1a; font-weight: 600; border-bottom-color: #7bbfea; background: transparent; }
+.tab-badge { font-size: 10px; background: #7bbfea; color: white; padding: 1px 6px; border-radius: 10px; font-weight: 700; }
+.tab-panel { display: none; flex: 1; flex-direction: column; min-height: 0; }
+.tab-panel.active { display: flex; }
+.chat-messages { flex: 1; overflow-y: auto; padding: 28px 0; display: flex; flex-direction: column; gap: 0; }
+.empty-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 40px 24px; gap: 20px; }
+.empty-h { font-size: 22px; font-weight: 700; letter-spacing: -0.03em; color: #333; }
+.empty-sub { font-size: 14px; color: #999; max-width: 340px; line-height: 1.6; }
+.suggestion-pills { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; max-width: 560px; }
+.pill { padding: 9px 16px; background: white; border: 1px solid #e0e0d8; border-radius: 20px; font-size: 13px; color: #444; cursor: pointer; transition: all 0.15s; }
+.pill:hover { border-color: #7bbfea; color: #1a1a1a; background: #f0f8ff; }
+.message-row { padding: 6px 20px; display: flex; gap: 12px; max-width: 800px; width: 100%; margin: 0 auto; }
+.message-row.user { justify-content: flex-end; }
+.msg-avatar { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0; margin-top: 2px; }
+.msg-avatar.ai { background: #7bbfea; color: white; }
+.msg-avatar.user-av { background: #e0e0d8; color: #555; }
+.msg-bubble { padding: 12px 16px; border-radius: 14px; font-size: 14px; line-height: 1.7; max-width: 580px; }
+.msg-bubble.ai { background: white; border: 1px solid #e8e8e2; color: #1a1a1a; border-radius: 4px 14px 14px 14px; }
+.msg-bubble.user { background: #1a1a1a; color: white; border-radius: 14px 4px 14px 14px; }
+.lesson-card { background: #f0f8ff; border: 1px solid #cce4f7; border-radius: 10px; padding: 14px 16px; margin-top: 10px; display: flex; align-items: center; gap: 12px; }
+.lesson-card-icon { font-size: 22px; flex-shrink: 0; }
+.lesson-card-title { font-size: 13px; font-weight: 600; color: #1a1a1a; margin-bottom: 3px; }
+.lesson-card-sub { font-size: 12px; color: #666; }
+.lesson-card-btn { margin-left: auto; flex-shrink: 0; padding: 7px 14px; background: #7bbfea; color: white; border: none; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; transition: background 0.15s; }
+.lesson-card-btn:hover { background: #5aade0; }
+.typing { display: flex; gap: 4px; align-items: center; padding: 4px 0; }
+.typing span { width: 6px; height: 6px; background: #aaa; border-radius: 50%; animation: typingBounce 1.2s ease-in-out infinite; }
+.typing span:nth-child(2) { animation-delay: 0.2s; }
+.typing span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes typingBounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-6px)} }
+.input-area { padding: 12px 20px 18px; flex-shrink: 0; }
+.input-box { max-width: 760px; margin: 0 auto; background: white; border: 1px solid #e0e0d8; border-radius: 16px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); overflow: hidden; transition: border-color 0.2s, box-shadow 0.2s; }
+.input-box:focus-within { border-color: #7bbfea; box-shadow: 0 4px 20px rgba(123,191,234,0.15); }
+.attached-file { display: none; align-items: center; gap: 8px; padding: 10px 14px 0; font-size: 12px; color: #555; }
+.attached-file.show { display: flex; }
+.attached-chip { background: #f0f8ff; border: 1px solid #cce4f7; border-radius: 8px; padding: 5px 10px; display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; color: #333; }
+.chip-remove { background: none; border: none; cursor: pointer; color: #aaa; font-size: 14px; line-height: 1; padding: 0 2px; }
+.chip-remove:hover { color: #e55; }
+.input-row { display: flex; align-items: flex-end; padding: 8px 10px; gap: 8px; }
+.plus-btn { width: 26px; height: 26px; border-radius: 7px; border: 1.5px solid #e0e0d8; background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #888; font-size: 15px; flex-shrink: 0; transition: all 0.15s; }
+.plus-btn:hover { border-color: #7bbfea; color: #7bbfea; background: #f0f8ff; }
+.plus-menu { position: absolute; bottom: 34px; left: 0; background: white; border: 1px solid #e0e0d8; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.1); padding: 6px; min-width: 200px; display: none; z-index: 50; }
+.plus-menu.open { display: block; }
+.plus-menu-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 8px; font-size: 13px; color: #333; cursor: pointer; transition: background 0.12s; }
+.plus-menu-item:hover { background: #f5f5f0; color: #1a1a1a; }
+.pm-icon { font-size: 16px; width: 22px; text-align: center; flex-shrink: 0; }
+textarea { flex: 1; border: none; outline: none; resize: none; font-family: inherit; font-size: 14px; line-height: 1.6; color: #1a1a1a; background: transparent; min-height: 22px; max-height: 160px; overflow-y: auto; padding: 4px 0; }
+textarea::placeholder { color: #b0b0a8; }
+.send-btn { width: 28px; height: 28px; border-radius: 7px; background: #1a1a1a; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.15s; color: white; }
+.send-btn:hover { background: #333; }
+.input-hint { text-align: center; font-size: 11px; color: #b0b0a8; margin-top: 8px; max-width: 760px; margin-left: auto; margin-right: auto; }
+.resource-panel { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.resource-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 40px 24px; gap: 16px; }
+.resource-empty-h { font-size: 18px; font-weight: 700; color: #333; letter-spacing: -0.02em; }
+.resource-empty-sub { font-size: 14px; color: #999; max-width: 320px; line-height: 1.6; }
+.resource-empty-btn { padding: 10px 22px; background: #7bbfea; color: white; border: none; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.15s; margin-top: 4px; }
+.resource-empty-btn:hover { background: #5aade0; }
+.resource-content { flex: 1; overflow-y: auto; padding: 24px; display: none; flex-direction: column; gap: 24px; max-width: 860px; width: 100%; margin: 0 auto; }
+.resource-content.show { display: flex; }
+.resource-slide-info { background: white; border: 1px solid #e0e0d8; border-radius: 12px; padding: 16px 20px; display: flex; align-items: center; gap: 14px; }
+.rsi-icon { font-size: 28px; flex-shrink: 0; }
+.rsi-title { font-size: 15px; font-weight: 700; margin-bottom: 3px; }
+.rsi-sub { font-size: 12px; color: #888; }
+.rsi-badges { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+.rsi-badge { font-size: 11px; padding: 3px 10px; border-radius: 20px; background: #f0f8ff; color: #4a9fd4; border: 1px solid #cce4f7; font-weight: 500; }
+.resource-section-h { font-size: 16px; font-weight: 700; letter-spacing: -0.02em; display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.rsh-count { font-size: 11px; background: #7bbfea; color: white; padding: 2px 8px; border-radius: 10px; font-weight: 700; }
+.exercise-list, .exam-list { display: flex; flex-direction: column; gap: 10px; }
+.exercise-card, .exam-card { background: white; border: 1px solid #e0e0d8; border-radius: 12px; padding: 16px 18px; }
+.exercise-card { cursor: pointer; transition: all 0.15s; }
+.exercise-card:hover { border-color: #7bbfea; }
+.exercise-card.answered { border-color: #b8e8c8; background: #f5fdf7; }
+.ex-q-num { font-size: 11px; font-weight: 700; color: #7bbfea; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
+.ex-q-text, .exam-q-text { font-size: 14px; font-weight: 500; color: #1a1a1a; line-height: 1.5; margin-bottom: 12px; }
+.ex-type-badge { display: inline-block; font-size: 10px; padding: 2px 8px; border-radius: 6px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
+.ex-type-badge.mcq { background: #fff3e0; color: #e67e22; }
+.ex-type-badge.short { background: #f0f8ff; color: #4a9fd4; }
+.ex-options { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.ex-option { padding: 8px 12px; border: 1px solid #e0e0d8; border-radius: 8px; font-size: 13px; color: #444; cursor: pointer; transition: all 0.12s; display: flex; align-items: center; gap: 8px; }
+.ex-option:hover { border-color: #7bbfea; background: #f0f8ff; }
+.ex-option.correct { border-color: #4caf50; background: #f5fdf7; color: #2e7d32; font-weight: 600; }
+.ex-option.wrong { border-color: #f44336; background: #fff5f5; color: #c62828; }
+.opt-letter { width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid #ddd; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; }
+.ex-option.correct .opt-letter { border-color: #4caf50; background: #4caf50; color: white; }
+.ex-option.wrong .opt-letter { border-color: #f44336; background: #f44336; color: white; }
+.ex-reveal-btn, .exam-expand-btn { margin-top: 10px; padding: 7px 14px; background: transparent; border: 1px solid #e0e0d8; border-radius: 8px; font-size: 12px; font-weight: 600; color: #666; cursor: pointer; transition: all 0.15s; }
+.ex-reveal-btn:hover { border-color: #7bbfea; color: #4a9fd4; }
+.exam-expand-btn:hover { border-color: #8b5cf6; color: #8b5cf6; }
+.ex-answer-box { margin-top: 10px; background: #f5fdf7; border: 1px solid #b8e8c8; border-radius: 8px; padding: 10px 14px; font-size: 13px; color: #2e7d32; line-height: 1.6; display: none; }
+.ex-answer-box.show { display: block; }
+.ex-answer-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #4caf50; margin-bottom: 5px; }
+.exam-q-num { font-size: 11px; font-weight: 700; color: #8b5cf6; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
+.exam-marks { font-size: 11px; color: #888; }
+.exam-marks span { color: #8b5cf6; font-weight: 600; }
+.exam-answer-box { margin-top: 10px; background: #f9f5ff; border: 1px solid #d8c8f8; border-radius: 8px; padding: 10px 14px; font-size: 13px; color: #4c1d95; line-height: 1.65; display: none; }
+.exam-answer-box.show { display: block; }
+.exam-answer-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #8b5cf6; margin-bottom: 5px; }
+.lesson-overlay { position: fixed; inset: 0; z-index: 200; background: #f5f5f0; display: none; flex-direction: column; }
+.lesson-overlay.show { display: flex; }
+.lesson-topbar { display: flex; align-items: center; gap: 14px; padding: 14px 24px; border-bottom: 1px solid #e0e0d8; background: white; flex-shrink: 0; }
+.lesson-back-btn { padding: 7px 14px; background: transparent; border: 1px solid #e0e0d8; border-radius: 8px; font-size: 13px; font-weight: 600; color: #555; cursor: pointer; transition: all 0.15s; }
+.lesson-back-btn:hover { border-color: #1a1a1a; color: #1a1a1a; }
+.lesson-topbar-title { font-size: 15px; font-weight: 700; letter-spacing: -0.02em; }
+.lesson-topbar-sub { font-size: 12px; color: #888; margin-top: 1px; }
+.lesson-progress-bar { flex: 1; height: 4px; background: #e0e0d8; border-radius: 2px; }
+.lesson-progress-fill { height: 100%; background: #7bbfea; border-radius: 2px; width: 0%; transition: width 0.5s; }
+.lesson-topbar-pct { font-size: 12px; color: #888; font-weight: 600; min-width: 36px; text-align: right; }
+.voice-badge-live { display: flex; align-items: center; gap: 7px; background: #f0f8ff; border: 1px solid #cce4f7; border-radius: 20px; padding: 6px 14px; font-size: 12px; font-weight: 600; color: #4a9fd4; }
+.lesson-body { flex: 1; display: flex; overflow: hidden; }
+.lesson-sidebar { width: 240px; border-right: 1px solid #e0e0d8; background: white; overflow-y: auto; padding: 16px 10px; flex-shrink: 0; }
+.slide-nav-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #aaa; padding: 0 8px; margin-bottom: 10px; }
+.slide-nav-item { padding: 8px 10px; border-radius: 8px; cursor: pointer; margin-bottom: 3px; transition: background 0.12s; border: 1px solid transparent; }
+.slide-nav-item:hover { background: #f5f5f0; }
+.slide-nav-item.active { background: #f0f8ff; border-color: #cce4f7; }
+.slide-nav-item.done { opacity: 0.6; }
+.sn-num { font-size: 10px; color: #aaa; font-weight: 600; margin-bottom: 2px; }
+.sn-title { font-size: 12px; font-weight: 500; color: #333; line-height: 1.3; }
+.slide-nav-item.active .sn-title { color: #1a1a1a; font-weight: 600; }
+.sn-bar { width: 100%; height: 2px; background: #7bbfea; border-radius: 2px; margin-top: 6px; }
+.lesson-main { flex: 1; overflow-y: auto; padding: 36px 48px; display: flex; flex-direction: column; gap: 20px; }
+.lesson-topic-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #7bbfea; }
+.lesson-topic-title { font-size: 28px; font-weight: 800; letter-spacing: -0.03em; color: #1a1a1a; line-height: 1.1; }
+.lesson-text-box { background: white; border: 1px solid #e8e8e2; border-radius: 14px; padding: 26px 28px; font-size: 15px; line-height: 1.85; color: #2a2a2a; }
+.lesson-text-box .hl { background: #e8f4fc; padding: 2px 6px; border-radius: 4px; color: #4a9fd4; font-weight: 600; }
+.cursor-blink { display: inline-block; width: 2px; height: 16px; background: #7bbfea; border-radius: 1px; margin-left: 2px; vertical-align: middle; animation: cursorBlink 1s infinite; }
+@keyframes cursorBlink { 0%,100%{opacity:1} 50%{opacity:0} }
+.wave-bars { display: flex; align-items: flex-end; gap: 2px; }
+.wave-bar { width: 3px; border-radius: 3px; background: #7bbfea; animation: waveA 1.2s ease-in-out infinite; transform-origin: bottom; }
+@keyframes waveA { 0%,100%{transform:scaleY(0.3)} 50%{transform:scaleY(1)} }
+.lesson-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.la-btn { padding: 9px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s; border: 1.5px solid #e0e0d8; background: white; color: #333; display: flex; align-items: center; gap: 6px; }
+.la-btn:hover { border-color: #1a1a1a; color: #1a1a1a; }
+.la-btn.primary { background: #7bbfea; border-color: #7bbfea; color: white; }
+.la-btn.primary:hover { background: #5aade0; }
+.audio-modal-backdrop { position: fixed; inset: 0; z-index: 300; background: rgba(0,0,0,0.35); display: none; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
+.audio-modal-backdrop.open { display: flex; }
+.audio-modal { background: white; border-radius: 20px; padding: 36px 32px; width: 100%; max-width: 400px; box-shadow: 0 24px 60px rgba(0,0,0,0.15); display: flex; flex-direction: column; align-items: center; gap: 20px; position: relative; animation: modalPop 0.25s cubic-bezier(0.34,1.56,0.64,1) both; }
+@keyframes modalPop { from{opacity:0;transform:scale(0.92) translateY(10px)} to{opacity:1;transform:scale(1) translateY(0)} }
+.audio-modal-close { position: absolute; top: 14px; right: 16px; background: none; border: none; font-size: 20px; color: #aaa; cursor: pointer; }
+.audio-modal-close:hover { color: #333; }
+.audio-modal-title { font-size: 17px; font-weight: 700; letter-spacing: -0.02em; color: #1a1a1a; }
+.audio-modal-sub { font-size: 13px; color: #999; text-align: center; margin-top: -12px; line-height: 1.5; }
+.audio-visualizer { width: 100%; height: 56px; background: #f5f5f0; border-radius: 10px; display: flex; align-items: center; justify-content: center; gap: 3px; padding: 0 16px; overflow: hidden; }
+.viz-bar { width: 3px; border-radius: 3px; background: #7bbfea; height: 4px; transition: height 0.1s; flex-shrink: 0; }
+.audio-timer { font-size: 32px; font-weight: 700; letter-spacing: -0.03em; color: #1a1a1a; }
+.record-btn { width: 68px; height: 68px; border-radius: 50%; background: #ff4444; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 20px rgba(255,68,68,0.4); transition: all 0.2s; position: relative; }
+.record-btn:hover { transform: scale(1.06); }
+.record-btn.recording { background: #1a1a1a; box-shadow: 0 4px 20px rgba(0,0,0,0.25); }
+.rec-dot { width: 22px; height: 22px; border-radius: 50%; background: white; transition: border-radius 0.2s; }
+.record-btn.recording .rec-dot { border-radius: 4px; width: 18px; height: 18px; }
+.record-pulse { position: absolute; inset: -6px; border-radius: 50%; border: 2px solid rgba(255,68,68,0.4); animation: recordPulse 1.5s ease-out infinite; display: none; }
+.record-btn.recording .record-pulse { display: block; }
+@keyframes recordPulse { 0%{transform:scale(1);opacity:1} 100%{transform:scale(1.5);opacity:0} }
+.audio-actions { display: flex; gap: 10px; width: 100%; }
+.audio-action-btn { flex: 1; padding: 11px; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s; border: 1.5px solid #e0e0d8; background: white; color: #333; display: flex; align-items: center; justify-content: center; gap: 6px; }
+.audio-action-btn:hover { border-color: #1a1a1a; color: #1a1a1a; }
+.audio-action-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.audio-action-btn.primary { background: #7bbfea; border-color: #7bbfea; color: white; }
+.audio-action-btn.primary:hover { background: #5aade0; }
+.audio-status { font-size: 12px; color: #aaa; text-align: center; }
+.audio-status.recording { color: #ff4444; font-weight: 600; }
+.audio-status.done { color: #4caf50; font-weight: 600; }
+::-webkit-scrollbar { width: 5px; } ::-webkit-scrollbar-track { background: transparent; } ::-webkit-scrollbar-thumb { background: #d0d0c8; border-radius: 3px; }
+#file-input { display: none; }
+@keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+.msg-anim { animation: fadeIn 0.25s ease both; }
+body.dark { background: #212121; color: #ececec; }
+body.dark .sidebar { background: #171717; border-color: #2f2f2f; }
+body.dark .sidebar-bottom { border-color: #2f2f2f; }
+body.dark .sidebar-section-label { color: #666; }
+body.dark .new-chat-btn { color: #ececec; }
+body.dark .new-chat-btn:hover { background: #2f2f2f; }
+body.dark .history-item { color: #aaa; }
+body.dark .history-item:hover { background: #2f2f2f; color: #ececec; }
+body.dark .history-item.active { background: #2f2f2f; color: #ececec; }
+body.dark .user-row:hover { background: #2f2f2f; }
+body.dark .user-name { color: #ececec; }
+body.dark .user-email { color: #666; }
+body.dark .main { background: #212121; }
+body.dark .top-tabs { background: #212121; border-color: #2f2f2f; }
+body.dark .tab { color: #666; }
+body.dark .tab:hover { background: #2f2f2f; color: #ececec; }
+body.dark .tab.active { color: #ececec; }
+body.dark .empty-h { color: #ececec; }
+body.dark .empty-sub { color: #666; }
+body.dark .pill { background: #2f2f2f; border-color: #3f3f3f; color: #aaa; }
+body.dark .pill:hover { border-color: #7bbfea; color: #ececec; background: #1a2a35; }
+body.dark .input-box { background: #2f2f2f; border-color: #3f3f3f; }
+body.dark textarea { color: #ececec; background: transparent; }
+body.dark textarea::placeholder { color: #555; }
+body.dark .plus-btn { border-color: #3f3f3f; color: #666; background: transparent; }
+body.dark .plus-btn:hover { border-color: #7bbfea; color: #7bbfea; background: #1a2a35; }
+body.dark .send-btn { background: #ececec; color: #212121; }
+body.dark .msg-bubble.ai { background: #2f2f2f; border-color: #3f3f3f; color: #ececec; }
+body.dark .msg-bubble.user { background: #3f3f3f; color: #ececec; }
+body.dark .lesson-card { background: #1a2a35; border-color: #2a4a5a; }
+body.dark .plus-menu { background: #2f2f2f; border-color: #3f3f3f; }
+body.dark .plus-menu-item { color: #aaa; }
+body.dark .plus-menu-item:hover { background: #3f3f3f; color: #ececec; }
+body.dark .attached-chip { background: #1a2a35; border-color: #2a4a5a; color: #ececec; }
+body.dark .resource-slide-info, body.dark .exercise-card, body.dark .exam-card { background: #2f2f2f; border-color: #3f3f3f; }
+body.dark .rsi-title, body.dark .ex-q-text, body.dark .exam-q-text { color: #ececec; }
+body.dark .resource-section-h { color: #ececec; }
+body.dark .ex-option { border-color: #3f3f3f; color: #aaa; background: transparent; }
+body.dark .ex-option:hover { border-color: #7bbfea; background: #1a2a35; color: #ececec; }
+body.dark .ex-reveal-btn, body.dark .exam-expand-btn { border-color: #3f3f3f; color: #888; background: transparent; }
+body.dark .lesson-overlay { background: #212121; }
+body.dark .lesson-topbar { background: #171717; border-color: #2f2f2f; }
+body.dark .lesson-topbar-title { color: #ececec; }
+body.dark .lesson-progress-bar { background: #3f3f3f; }
+body.dark .lesson-sidebar { background: #171717; border-color: #2f2f2f; }
+body.dark .slide-nav-item.active { background: #1a2a35; border-color: #2a4a5a; }
+body.dark .sn-title { color: #aaa; }
+body.dark .lesson-text-box { background: #2f2f2f; border-color: #3f3f3f; color: #ddd; }
+body.dark .la-btn { border-color: #3f3f3f; background: #2f2f2f; color: #aaa; }
+body.dark .audio-modal { background: #2f2f2f; }
+body.dark .audio-modal-title { color: #ececec; }
+body.dark .audio-timer { color: #ececec; }
+body.dark .audio-visualizer { background: #212121; }
+body.dark .audio-action-btn { background: #3f3f3f; border-color: #4a4a4a; color: #aaa; }
+body.dark .theme-toggle:hover { background: #2f2f2f; color: #ececec; }
+body.dark .resource-empty-h { color: #ececec; }
+body.dark .resource-empty-sub { color: #666; }
+body.dark .input-hint { color: #555; }
+</style>
+</head>
+<body>
+
+<input type="file" id="file-input" accept=".pdf,.pptx,.ppt">
+
+<aside class="sidebar">
+  <div class="sidebar-top">
+    <div class="logo">
+      <svg width="28" height="28" viewBox="0 0 100 100" fill="none">
+        <circle cx="50" cy="50" r="50" fill="#7bbfea"/>
+        <rect x="46" y="14" width="7" height="30" rx="3.5" fill="white" transform="rotate(0,50,50)"/>
+        <rect x="46" y="14" width="6.5" height="28" rx="3.25" fill="white" opacity=".9" transform="rotate(22,50,50)"/>
+        <rect x="46" y="14" width="6" height="26" rx="3" fill="white" opacity=".82" transform="rotate(44,50,50)"/>
+        <rect x="46" y="14" width="5" height="22" rx="2.5" fill="white" opacity=".68" transform="rotate(66,50,50)"/>
+        <rect x="46" y="14" width="4" height="17" rx="2" fill="white" opacity=".52" transform="rotate(88,50,50)"/>
+        <rect x="46" y="14" width="3" height="12" rx="1.5" fill="white" opacity=".36" transform="rotate(110,50,50)"/>
+        <rect x="46" y="14" width="7" height="30" rx="3.5" fill="white" transform="rotate(-22,50,50)"/>
+        <rect x="46" y="14" width="6.5" height="28" rx="3.25" fill="white" opacity=".9" transform="rotate(-44,50,50)"/>
+        <rect x="46" y="14" width="6" height="26" rx="3" fill="white" opacity=".82" transform="rotate(-66,50,50)"/>
+        <rect x="46" y="14" width="5" height="22" rx="2.5" fill="white" opacity=".68" transform="rotate(-88,50,50)"/>
+        <rect x="46" y="14" width="4" height="17" rx="2" fill="white" opacity=".52" transform="rotate(-110,50,50)"/>
+      </svg>
+      <span class="logo-text">STRIVE</span>
+    </div>
+  </div>
+  <button class="new-chat-btn" onclick="newChat()">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+    New chat
+  </button>
+  <div class="sidebar-section-label">Recent</div>
+  <div class="chat-history">
+    <div class="history-item active" onclick="selectChat(this)">Biochemistry Week 4</div>
+    <div class="history-item" onclick="selectChat(this)">Organic Chemistry Lecture 2</div>
+    <div class="history-item" onclick="selectChat(this)">Cell Biology — Intro</div>
+    <div class="history-item" onclick="selectChat(this)">Thermodynamics Slides</div>
+    <div class="history-item" onclick="selectChat(this)">General Q&amp;A</div>
+  </div>
+  <div class="sidebar-bottom">
+    <div style="display:flex;align-items:center;gap:4px">
+      <div class="user-row" style="flex:1;margin:0">
+        <div class="user-avatar">K</div>
+        <div>
+          <div class="user-name">Kwame A.</div>
+          <div class="user-email">k.asante@ug.edu.gh</div>
+        </div>
+      </div>
+      <button class="theme-toggle" onclick="toggleTheme()" title="Toggle dark/light mode">
+        <svg id="theme-icon-moon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        <svg id="theme-icon-sun" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/></svg>
+      </button>
+    </div>
+  </div>
+</aside>
+
+<main class="main">
+  <div class="top-tabs">
+    <div class="tab active" onclick="switchTab('chat',this)">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M12 2L13.5 9.5L21 12L13.5 14.5L12 22L10.5 14.5L3 12L10.5 9.5Z" fill="#7bbfea"/></svg>
+      Chat
+    </div>
+    <div class="tab" onclick="switchTab('resources',this)" id="resource-tab">
+      <svg width="18" height="18" viewBox="0 0 200 160" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M10 130 Q100 110 190 130 L190 145 Q100 125 10 145 Z" fill="#7bbfea"/>
+        <path d="M10 130 Q100 110 190 130" stroke="#7bbfea" stroke-width="4" fill="none"/>
+        <path d="M10 130 Q55 40 100 115" stroke="#7bbfea" stroke-width="5" fill="none" stroke-linecap="round"/>
+        <path d="M190 130 Q145 40 100 115" stroke="#7bbfea" stroke-width="5" fill="none" stroke-linecap="round"/>
+        <path d="M100 115 Q97 70 93 20 Q100 35 107 20 Q103 70 100 115Z" fill="#7bbfea"/>
+        <path d="M100 115 Q88 72 78 28 Q87 40 96 30 Q98 72 100 115Z" fill="#7bbfea" opacity="0.85"/>
+        <path d="M100 115 Q80 76 63 38 Q74 46 86 40 Q96 74 100 115Z" fill="#7bbfea" opacity="0.65"/>
+        <path d="M100 115 Q112 72 122 28 Q113 40 104 30 Q102 72 100 115Z" fill="#7bbfea" opacity="0.85"/>
+      </svg>
+      Resource Centre
+      <span class="tab-badge" id="resource-badge" style="display:none">0</span>
+    </div>
+  </div>
+
+  <div class="tab-panel active" id="panel-chat">
+    <div class="chat-messages" id="chat-messages">
+      <div class="empty-state" id="empty-state">
+        <svg width="64" height="64" viewBox="0 0 100 100" fill="none" style="opacity:0.2">
+          <circle cx="50" cy="50" r="50" fill="#7bbfea"/>
+          <rect x="46" y="14" width="7" height="28" rx="3.5" fill="white" transform="rotate(0,50,50)"/>
+          <rect x="46" y="14" width="6" height="24" rx="3" fill="white" opacity=".85" transform="rotate(30,50,50)"/>
+          <rect x="46" y="14" width="5" height="20" rx="2.5" fill="white" opacity=".68" transform="rotate(60,50,50)"/>
+          <rect x="46" y="14" width="4" height="15" rx="2" fill="white" opacity=".5" transform="rotate(90,50,50)"/>
+          <rect x="46" y="14" width="7" height="28" rx="3.5" fill="white" transform="rotate(-30,50,50)"/>
+          <rect x="46" y="14" width="6" height="24" rx="3" fill="white" opacity=".85" transform="rotate(-60,50,50)"/>
+          <rect x="46" y="14" width="5" height="20" rx="2.5" fill="white" opacity=".68" transform="rotate(-90,50,50)"/>
+        </svg>
+        <div class="empty-h">What are we studying today?</div>
+        <div class="empty-sub">Upload your lecturer's slides, then ask me anything about your course.</div>
+        <div class="suggestion-pills">
+          <div class="pill" onclick="useSuggestion(this)">Generate exercise questions</div>
+          <div class="pill" onclick="useSuggestion(this)">What are likely exam questions?</div>
+          <div class="pill" onclick="useSuggestion(this)">Explain a concept to me</div>
+          <div class="pill" onclick="useSuggestion(this)">Start teaching me</div>
+          <div class="pill" onclick="useSuggestion(this)">Summarise my slides</div>
+        </div>
+      </div>
+    </div>
+    <div class="input-area">
+      <div class="input-box">
+        <div class="attached-file" id="attached-file">
+          <div class="attached-chip">
+            <span>📄</span>
+            <span id="attached-name">file.pdf</span>
+            <button class="chip-remove" onclick="removeAttachment()">×</button>
+          </div>
+        </div>
+        <div class="input-row">
+          <div style="position:relative">
+            <button class="plus-btn" onclick="togglePlusMenu(event)" title="Attach">+</button>
+            <div class="plus-menu" id="plus-menu">
+              <div class="plus-menu-item" onclick="closePlusMenu()" onmousedown="document.getElementById('file-input').click()"><span class="pm-icon">📄</span> Upload lecture slides</div>
+              <div class="plus-menu-item" onclick="closePlusMenu()"><span class="pm-icon">🖼️</span> Upload image</div>
+              <div class="plus-menu-item" onclick="closePlusMenu()"><span class="pm-icon">📋</span> Paste slide text</div>
+            </div>
+          </div>
+          <button class="plus-btn" onclick="openAudioModal()" title="Record audio">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="11" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="9" y1="22" x2="15" y2="22"/></svg>
+          </button>
+          <textarea id="chat-input" placeholder="Ask STRIVE anything, or upload your slides..." rows="1" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+          <button class="send-btn" onclick="sendMessage()" title="Send">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+          </button>
+        </div>
+      </div>
+      <div class="input-hint">STRIVE learns from your exact slides — the more you upload, the better it teaches.</div>
+    </div>
+  </div>
+
+  <div class="tab-panel" id="panel-resources">
+    <div class="resource-panel">
+      <div class="resource-empty" id="resource-empty">
+        <div style="font-size:48px;opacity:0.25">📚</div>
+        <div class="resource-empty-h">No resources yet</div>
+        <div class="resource-empty-sub">Upload your lecture slides in the Chat tab and STRIVE will automatically generate exercises and exam questions here.</div>
+        <button class="resource-empty-btn" onclick="switchTab('chat',document.querySelector('.tab'))">Go to Chat →</button>
+      </div>
+      <div class="resource-content" id="resource-content">
+        <div class="resource-slide-info">
+          <div class="rsi-icon">📄</div>
+          <div>
+            <div class="rsi-title" id="rsi-filename">Biochemistry_Week4.pdf</div>
+            <div class="rsi-sub" id="rsi-sub">24 slides · Analysed by STRIVE</div>
+            <div class="rsi-badges">
+              <span class="rsi-badge">Protein Synthesis</span>
+              <span class="rsi-badge">DNA Replication</span>
+              <span class="rsi-badge">Cell Division</span>
+              <span class="rsi-badge">Membrane Biology</span>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="resource-section-h">📝 Practice Exercises <span class="rsh-count">5</span></div>
+          <div class="exercise-list">
+            <div class="exercise-card" id="ex1">
+              <div class="ex-q-num">Exercise 1 · MCQ</div>
+              <div class="ex-q-text">Which of the following correctly describes the role of mRNA in protein synthesis?</div>
+              <span class="ex-type-badge mcq">Multiple Choice</span>
+              <div class="ex-options">
+                <div class="ex-option" onclick="selectOption(this,'ex1',false)"><span class="opt-letter">A</span> It carries amino acids to the ribosome</div>
+                <div class="ex-option" onclick="selectOption(this,'ex1',true)"><span class="opt-letter">B</span> It carries the genetic code from DNA to the ribosome</div>
+                <div class="ex-option" onclick="selectOption(this,'ex1',false)"><span class="opt-letter">C</span> It forms the structural component of the ribosome</div>
+                <div class="ex-option" onclick="selectOption(this,'ex1',false)"><span class="opt-letter">D</span> It catalyses the formation of peptide bonds</div>
+              </div>
+            </div>
+            <div class="exercise-card" id="ex2">
+              <div class="ex-q-num">Exercise 2 · Short Answer</div>
+              <div class="ex-q-text">Briefly explain the difference between transcription and translation in protein synthesis.</div>
+              <span class="ex-type-badge short">Short Answer</span>
+              <button class="ex-reveal-btn" onclick="revealAnswer(this,'ex2-ans')">Show model answer</button>
+              <div class="ex-answer-box" id="ex2-ans"><div class="ex-answer-label">✓ Model Answer</div>Transcription copies DNA into mRNA in the nucleus. Translation decodes mRNA into a protein at the ribosome in the cytoplasm.</div>
+            </div>
+            <div class="exercise-card" id="ex3">
+              <div class="ex-q-num">Exercise 3 · MCQ</div>
+              <div class="ex-q-text">During DNA replication, which enzyme is responsible for unwinding the double helix?</div>
+              <span class="ex-type-badge mcq">Multiple Choice</span>
+              <div class="ex-options">
+                <div class="ex-option" onclick="selectOption(this,'ex3',false)"><span class="opt-letter">A</span> DNA Polymerase</div>
+                <div class="ex-option" onclick="selectOption(this,'ex3',false)"><span class="opt-letter">B</span> Ligase</div>
+                <div class="ex-option" onclick="selectOption(this,'ex3',true)"><span class="opt-letter">C</span> Helicase</div>
+                <div class="ex-option" onclick="selectOption(this,'ex3',false)"><span class="opt-letter">D</span> Primase</div>
+              </div>
+            </div>
+            <div class="exercise-card" id="ex4">
+              <div class="ex-q-num">Exercise 4 · Short Answer</div>
+              <div class="ex-q-text">What is the significance of the semi-conservative model of DNA replication?</div>
+              <span class="ex-type-badge short">Short Answer</span>
+              <button class="ex-reveal-btn" onclick="revealAnswer(this,'ex4-ans')">Show model answer</button>
+              <div class="ex-answer-box" id="ex4-ans"><div class="ex-answer-label">✓ Model Answer</div>Each new DNA molecule consists of one original strand and one new strand, preserving genetic information and providing a template for error correction.</div>
+            </div>
+            <div class="exercise-card" id="ex5">
+              <div class="ex-q-num">Exercise 5 · MCQ</div>
+              <div class="ex-q-text">The fluid mosaic model describes the plasma membrane as consisting of:</div>
+              <span class="ex-type-badge mcq">Multiple Choice</span>
+              <div class="ex-options">
+                <div class="ex-option" onclick="selectOption(this,'ex5',false)"><span class="opt-letter">A</span> A rigid bilayer of proteins embedded in lipids</div>
+                <div class="ex-option" onclick="selectOption(this,'ex5',false)"><span class="opt-letter">B</span> A single layer of phospholipids with surface proteins</div>
+                <div class="ex-option" onclick="selectOption(this,'ex5',true)"><span class="opt-letter">C</span> A dynamic phospholipid bilayer with embedded and peripheral proteins</div>
+                <div class="ex-option" onclick="selectOption(this,'ex5',false)"><span class="opt-letter">D</span> A carbohydrate matrix surrounding a protein core</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="resource-section-h">🎯 Likely Examination Questions <span class="rsh-count">5</span></div>
+          <div class="exam-list">
+            <div class="exam-card">
+              <div class="exam-q-num">Exam Q1 · Essay</div>
+              <div class="exam-q-text">With the aid of a diagram, describe the process of protein synthesis from transcription to translation.</div>
+              <div class="exam-marks">Expected marks: <span>15–20 marks</span> · Difficulty: <span style="color:#e67e22">High</span></div>
+              <button class="exam-expand-btn" onclick="toggleExamAnswer(this,'ea1')">Show marking guide</button>
+              <div class="exam-answer-box" id="ea1"><div class="exam-answer-label">📋 Marking Guide</div>Transcription in nucleus [4], mRNA movement [2], tRNA role [3], peptide bond formation [3], termination [2], diagram [2].</div>
+            </div>
+            <div class="exam-card">
+              <div class="exam-q-num">Exam Q2 · Short Answer</div>
+              <div class="exam-q-text">Explain why DNA replication is described as semi-conservative and outline the key enzymes involved.</div>
+              <div class="exam-marks">Expected marks: <span>8–10 marks</span> · Difficulty: <span style="color:#f39c12">Medium</span></div>
+              <button class="exam-expand-btn" onclick="toggleExamAnswer(this,'ea2')">Show marking guide</button>
+              <div class="exam-answer-box" id="ea2"><div class="exam-answer-label">📋 Marking Guide</div>Definition [2], Helicase [2], DNA Polymerase [2], Ligase [2], leading vs lagging strand [2].</div>
+            </div>
+            <div class="exam-card">
+              <div class="exam-q-num">Exam Q3 · MCQ</div>
+              <div class="exam-q-text">Which stage of the cell cycle involves physical separation of chromosomes to opposite poles?</div>
+              <div class="exam-marks">Expected marks: <span>2 marks</span> · Difficulty: <span style="color:#27ae60">Low</span></div>
+              <button class="exam-expand-btn" onclick="toggleExamAnswer(this,'ea3')">Show answer</button>
+              <div class="exam-answer-box" id="ea3"><div class="exam-answer-label">✓ Answer</div>Anaphase — spindle fibres shorten and pull sister chromatids to opposite poles.</div>
+            </div>
+            <div class="exam-card">
+              <div class="exam-q-num">Exam Q4 · Short Answer</div>
+              <div class="exam-q-text">Compare the structure and function of rough and smooth endoplasmic reticulum.</div>
+              <div class="exam-marks">Expected marks: <span>6 marks</span> · Difficulty: <span style="color:#f39c12">Medium</span></div>
+              <button class="exam-expand-btn" onclick="toggleExamAnswer(this,'ea4')">Show marking guide</button>
+              <div class="exam-answer-box" id="ea4"><div class="exam-answer-label">📋 Marking Guide</div>RER: ribosomes [1], protein synthesis [1], nuclear envelope [1]. SER: no ribosomes [1], lipid synthesis [1], detoxification [1].</div>
+            </div>
+            <div class="exam-card">
+              <div class="exam-q-num">Exam Q5 · Essay</div>
+              <div class="exam-q-text">Describe the fluid mosaic model and explain how membrane structure relates to selective permeability.</div>
+              <div class="exam-marks">Expected marks: <span>12 marks</span> · Difficulty: <span style="color:#e67e22">High</span></div>
+              <button class="exam-expand-btn" onclick="toggleExamAnswer(this,'ea5')">Show marking guide</button>
+              <div class="exam-answer-box" id="ea5"><div class="exam-answer-label">📋 Marking Guide</div>Phospholipid bilayer [2], integral/peripheral proteins [2], cholesterol [2], carbohydrates [2], selective permeability via channels [4].</div>
+            </div>
+          </div>
+        </div>
+        <div style="height:40px"></div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<div class="lesson-overlay" id="lesson-overlay">
+  <div class="lesson-topbar">
+    <button class="lesson-back-btn" onclick="closeLesson()">← Back to chat</button>
+    <div><div class="lesson-topbar-title">Biochemistry Week 4</div><div class="lesson-topbar-sub" id="lesson-sub">Slide 3 of 24</div></div>
+    <div class="lesson-progress-bar"><div class="lesson-progress-fill" id="lesson-fill"></div></div>
+    <div class="lesson-topbar-pct" id="lesson-pct">0%</div>
+    <div class="voice-badge-live">
+      <div class="wave-bars">
+        <span class="wave-bar" style="height:5px;animation-delay:0s"></span>
+        <span class="wave-bar" style="height:12px;animation-delay:.12s"></span>
+        <span class="wave-bar" style="height:8px;animation-delay:.22s"></span>
+        <span class="wave-bar" style="height:14px;animation-delay:.06s"></span>
+        <span class="wave-bar" style="height:6px;animation-delay:.18s"></span>
+      </div>
+      Voice on
+    </div>
+  </div>
+  <div class="lesson-body">
+    <div class="lesson-sidebar">
+      <div class="slide-nav-label">Slides</div>
+      <div class="slide-nav-item done"><div class="sn-num">Slide 1</div><div class="sn-title">Introduction to Cell Biology</div></div>
+      <div class="slide-nav-item done"><div class="sn-num">Slide 2</div><div class="sn-title">Membrane Structure Overview</div></div>
+      <div class="slide-nav-item active"><div class="sn-num">Slide 3</div><div class="sn-title">Protein Synthesis</div><div class="sn-bar"></div></div>
+      <div class="slide-nav-item"><div class="sn-num">Slide 4</div><div class="sn-title">Transcription in Detail</div></div>
+      <div class="slide-nav-item"><div class="sn-num">Slide 5</div><div class="sn-title">Translation at the Ribosome</div></div>
+    </div>
+    <div class="lesson-main">
+      <div class="lesson-topic-label">Now Teaching · Slide 3</div>
+      <div class="lesson-topic-title">Protein Synthesis</div>
+      <div class="lesson-text-box" id="lesson-text">
+        <strong>Protein synthesis</strong> is the process by which cells build proteins using information encoded in DNA. It occurs in two major stages.<br><br>
+        The first stage is <span class="hl">transcription</span>, which takes place in the <strong>nucleus</strong>. RNA polymerase reads the DNA template and assembles a complementary mRNA molecule.<br><br>
+        The second stage is <span class="hl">translation</span>, which occurs at the <strong>ribosome</strong>. The ribosome reads the mRNA in groups of three bases called <span class="hl">codons</span>, each specifying an amino acid.<span class="cursor-blink"></span>
+      </div>
+      <div class="lesson-actions">
+        <button class="la-btn primary" onclick="continueLesson()">▶ Continue lesson</button>
+        <button class="la-btn" onclick="replayVoice()">🔊 Replay voice</button>
+        <button class="la-btn" onclick="closeLesson()">💬 Ask a question</button>
+        <button class="la-btn" onclick="goToResources()">📝 Go to exercises</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="audio-modal-backdrop" id="audio-modal-backdrop" onclick="handleBackdropClick(event)">
+  <div class="audio-modal">
+    <button class="audio-modal-close" onclick="closeAudioModal()">×</button>
+    <div class="audio-modal-title">🎙️ Record Audio</div>
+    <div class="audio-modal-sub">Record a lecture, voice note, or question.<br>STRIVE will transcribe and analyse it.</div>
+    <div class="audio-visualizer" id="audio-visualizer">
+      <div class="viz-bar" id="vb1"></div><div class="viz-bar" id="vb2"></div><div class="viz-bar" id="vb3"></div><div class="viz-bar" id="vb4"></div><div class="viz-bar" id="vb5"></div>
+      <div class="viz-bar" id="vb6"></div><div class="viz-bar" id="vb7"></div><div class="viz-bar" id="vb8"></div><div class="viz-bar" id="vb9"></div><div class="viz-bar" id="vb10"></div>
+      <div class="viz-bar" id="vb11"></div><div class="viz-bar" id="vb12"></div><div class="viz-bar" id="vb13"></div><div class="viz-bar" id="vb14"></div><div class="viz-bar" id="vb15"></div>
+      <div class="viz-bar" id="vb16"></div><div class="viz-bar" id="vb17"></div><div class="viz-bar" id="vb18"></div><div class="viz-bar" id="vb19"></div><div class="viz-bar" id="vb20"></div>
+    </div>
+    <div class="audio-timer" id="audio-timer">0:00</div>
+    <button class="record-btn" id="record-btn" onclick="toggleRecording()"><div class="record-pulse"></div><div class="rec-dot"></div></button>
+    <div class="audio-status" id="audio-status">Tap to start recording</div>
+    <div class="audio-actions">
+      <button class="audio-action-btn" id="btn-discard" onclick="discardRecording()" disabled>🗑️ Discard</button>
+      <button class="audio-action-btn primary" id="btn-send-audio" onclick="sendAudio()" disabled>Send to STRIVE →</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API_URL = "https://strive-backend-1.onrender.com";
+let sessionId = null, attachedFile = null, slidesUploaded = false, lessonProgress = 22;
+let mediaRecorder = null, audioChunks = [], recordingInterval = null, recordingSeconds = 0, isRecording = false, vizInterval = null;
+
+// THEME
+function toggleTheme() {
+  const isDark = document.body.classList.toggle('dark');
+  document.getElementById('theme-icon-moon').style.display = isDark ? 'none' : 'block';
+  document.getElementById('theme-icon-sun').style.display = isDark ? 'block' : 'none';
+  localStorage.setItem('strive-theme', isDark ? 'dark' : 'light');
+}
+(function() {
+  if (localStorage.getItem('strive-theme') === 'dark') {
+    document.body.classList.add('dark');
+    document.getElementById('theme-icon-moon').style.display = 'none';
+    document.getElementById('theme-icon-sun').style.display = 'block';
+  }
+})();
+
+// TABS
+function switchTab(name, el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => { if (t.textContent.toLowerCase().includes(name === 'chat' ? 'chat' : 'resource')) t.classList.add('active'); });
+  document.getElementById('panel-' + (name === 'chat' ? 'chat' : 'resources')).classList.add('active');
+}
+
+// PLUS MENU
+let plusMenuJustOpened = false;
+function togglePlusMenu(e) { e.stopPropagation(); document.getElementById('plus-menu').classList.toggle('open'); plusMenuJustOpened = true; setTimeout(() => { plusMenuJustOpened = false; }, 0); }
+function closePlusMenu() { document.getElementById('plus-menu').classList.remove('open'); }
+document.addEventListener('click', () => { if (!plusMenuJustOpened) closePlusMenu(); });
+
+// FILE UPLOAD
+function triggerUpload() { closePlusMenu(); document.getElementById('file-input').click(); }
+document.getElementById('file-input').addEventListener('change', async function() {
+  const file = this.files[0];
+  if (!file) return;
+  attachedFile = file;
+  document.getElementById('attached-name').textContent = file.name;
+  document.getElementById('attached-file').classList.add('show');
+  this.value = '';
+  const container = document.getElementById('chat-messages');
+  document.getElementById('empty-state').style.display = 'none';
+  showTyping(container);
+  try {
+    const fd = new FormData();
+    fd.append('file', file);
+    const res = await fetch(API_URL + '/upload', { method: 'POST', body: fd });
+    const data = await res.json();
+    removeTyping();
+    if (data.session_id) {
+      sessionId = data.session_id;
+      slidesUploaded = true;
+      removeAttachment();
+      const meta = data.meta;
+      const topics = meta.topics ? meta.topics.join(', ') : 'various topics';
+      addAIMessage(container,
+        'I\'ve read through your slides on <strong>' + (meta.title || file.name) + '</strong>.<br><br>' +
+        'Found <strong>' + (meta.slide_count || '?') + ' slides</strong> covering: ' + topics + '.<br><br>' +
+        (meta.summary || '') + '<br><br>Ready to teach you! Should I start the lesson, generate exercises, or do you have a question?' +
+        '<div class="lesson-card"><div class="lesson-card-icon">🎓</div><div><div class="lesson-card-title">Start lesson — ' + (meta.title || file.name) + '</div><div class="lesson-card-sub">' + (meta.slide_count || '?') + ' slides · Voice + text</div></div><button class="lesson-card-btn" onclick="openLesson()">Begin →</button></div>'
+      );
+      showResources();
+    }
+  } catch(err) {
+    removeTyping();
+    addAIMessage(container, 'Error uploading file. The backend may be waking up — please try again in 30 seconds.');
+  }
+});
+
+function removeAttachment() { attachedFile = null; document.getElementById('attached-file').classList.remove('show'); }
+function autoResize(el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 160) + 'px'; }
+function handleKey(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }
+
+// SEND MESSAGE
+async function sendMessage() {
+  const input = document.getElementById('chat-input');
+  const text = input.value.trim();
+  if (!text && !attachedFile) return;
+  document.getElementById('empty-state').style.display = 'none';
+  const container = document.getElementById('chat-messages');
+  const row = document.createElement('div');
+  row.className = 'message-row user msg-anim';
+  let msgContent = text || '';
+  row.innerHTML = '<div class="msg-bubble user">' + msgContent + '</div><div class="msg-avatar user-av">K</div>';
+  container.appendChild(row);
+  const userText = text;
+  input.value = ''; input.style.height = 'auto';
+  removeAttachment();
+  container.scrollTop = container.scrollHeight;
+  showTyping(container);
+  try {
+    const fd = new FormData();
+    fd.append('session_id', sessionId || 'no-session');
+    fd.append('message', userText || 'Hello');
+    const res = await fetch(API_URL + '/chat', { method: 'POST', body: fd });
+    const data = await res.json();
+    removeTyping();
+    const reply = (data.reply || "Sorry, I couldn't get a response.").replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    addAIMessage(container, reply);
+  } catch(err) {
+    removeTyping();
+    addAIMessage(container, 'Connection error. The backend may be waking up — please try again in 30 seconds.');
+  }
+}
+
+function useSuggestion(el) { document.getElementById('chat-input').value = el.textContent.trim(); sendMessage(); }
+function selectChat(el) { document.querySelectorAll('.history-item').forEach(i => i.classList.remove('active')); el.classList.add('active'); }
+
+// RESOURCES
+function showResources() {
+  document.getElementById('resource-empty').style.display = 'none';
+  document.getElementById('resource-content').classList.add('show');
+  document.getElementById('resource-badge').style.display = 'inline';
+  document.getElementById('resource-badge').textContent = '10';
+}
+function goToResources() { closeLesson(); switchTab('resources', null); showResources(); }
+
+// EXERCISES
+function selectOption(el, cardId, isCorrect) {
+  const card = document.getElementById(cardId);
+  card.querySelectorAll('.ex-option').forEach(o => { o.onclick = null; o.style.pointerEvents = 'none'; });
+  el.classList.add(isCorrect ? 'correct' : 'wrong');
+  card.classList.add('answered');
+}
+function revealAnswer(btn, id) {
+  const box = document.getElementById(id);
+  box.classList.toggle('show');
+  btn.textContent = box.classList.contains('show') ? 'Hide answer' : 'Show model answer';
+}
+function toggleExamAnswer(btn, id) {
+  const box = document.getElementById(id);
+  box.classList.toggle('show');
+  btn.textContent = box.classList.contains('show') ? 'Hide' : (id === 'ea3' ? 'Show answer' : 'Show marking guide');
+}
+
+// LESSON
+function openLesson() { document.getElementById('lesson-overlay').classList.add('show'); document.getElementById('lesson-fill').style.width = lessonProgress + '%'; document.getElementById('lesson-pct').textContent = lessonProgress + '%'; }
+function closeLesson() { document.getElementById('lesson-overlay').classList.remove('show'); }
+function continueLesson() {
+  lessonProgress = Math.min(lessonProgress + 12, 100);
+  document.getElementById('lesson-fill').style.width = lessonProgress + '%';
+  document.getElementById('lesson-pct').textContent = lessonProgress + '%';
+  document.getElementById('lesson-sub').textContent = 'Slide 4 of 24';
+  document.querySelector('.slide-nav-item.active')?.classList.remove('active');
+  document.querySelectorAll('.slide-nav-item')[3]?.classList.add('active');
+}
+function replayVoice() {
+  const text = document.getElementById('lesson-text').innerText;
+  if ('speechSynthesis' in window) { window.speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.rate = 0.92; u.pitch = 1.05; window.speechSynthesis.speak(u); }
+}
+
+// NEW CHAT
+function newChat() {
+  document.getElementById('empty-state').style.display = '';
+  document.querySelectorAll('.message-row').forEach(m => m.remove());
+  attachedFile = null; slidesUploaded = false; sessionId = null;
+  document.getElementById('attached-file').classList.remove('show');
+  document.getElementById('chat-input').value = '';
+  switchTab('chat', null);
+}
+
+// HELPERS
+function showTyping(container) {
+  const row = document.createElement('div');
+  row.className = 'message-row msg-anim'; row.id = 'typing-indicator';
+  row.innerHTML = '<div class="msg-avatar ai">S</div><div class="msg-bubble ai"><div class="typing"><span></span><span></span><span></span></div></div>';
+  container.appendChild(row); container.scrollTop = container.scrollHeight;
+}
+function removeTyping() { document.getElementById('typing-indicator')?.remove(); }
+function addAIMessage(container, html) {
+  const row = document.createElement('div');
+  row.className = 'message-row msg-anim';
+  row.innerHTML = '<div class="msg-avatar ai">S</div><div class="msg-bubble ai">' + html + '</div>';
+  container.appendChild(row); container.scrollTop = container.scrollHeight;
+}
+
+// AUDIO MODAL
+function openAudioModal() { closePlusMenu(); document.getElementById('audio-modal-backdrop').classList.add('open'); resetAudioModal(); }
+function closeAudioModal() { if (isRecording) stopRecording(); document.getElementById('audio-modal-backdrop').classList.remove('open'); resetAudioModal(); }
+function handleBackdropClick(e) { if (e.target === document.getElementById('audio-modal-backdrop')) closeAudioModal(); }
+function resetAudioModal() {
+  isRecording = false; recordingSeconds = 0;
+  document.getElementById('audio-timer').textContent = '0:00';
+  document.getElementById('audio-status').textContent = 'Tap to start recording';
+  document.getElementById('audio-status').className = 'audio-status';
+  document.getElementById('record-btn').classList.remove('recording');
+  document.getElementById('btn-discard').disabled = true;
+  document.getElementById('btn-send-audio').disabled = true;
+  clearInterval(recordingInterval); clearInterval(vizInterval);
+  for (let i = 1; i <= 20; i++) { const b = document.getElementById('vb'+i); if(b) b.style.height='4px'; }
+}
+function toggleRecording() { if (!isRecording) startRecording(); else stopRecording(); }
+async function startRecording() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    mediaRecorder = new MediaRecorder(stream); audioChunks = [];
+    mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+    mediaRecorder.start();
+    const actx = new AudioContext(), analyser = actx.createAnalyser();
+    analyser.fftSize = 64;
+    actx.createMediaStreamSource(stream).connect(analyser);
+    const arr = new Uint8Array(analyser.frequencyBinCount);
+    vizInterval = setInterval(() => { analyser.getByteFrequencyData(arr); for (let i=1;i<=20;i++){const b=document.getElementById('vb'+i);if(b)b.style.height=Math.max(4,(arr[i]||0)/255*44)+'px';} }, 60);
+  } catch(e) {
+    vizInterval = setInterval(() => { for (let i=1;i<=20;i++){const b=document.getElementById('vb'+i);if(b)b.style.height=(Math.random()>0.4?4+Math.random()*38:4)+'px';} }, 120);
+  }
+  isRecording = true;
+  document.getElementById('record-btn').classList.add('recording');
+  document.getElementById('audio-status').textContent = '● Recording...';
+  document.getElementById('audio-status').className = 'audio-status recording';
+  document.getElementById('btn-discard').disabled = false;
+  recordingInterval = setInterval(() => { recordingSeconds++; const m=Math.floor(recordingSeconds/60),s=recordingSeconds%60; document.getElementById('audio-timer').textContent=m+':'+(s<10?'0':'')+s; }, 1000);
+}
+function stopRecording() {
+  isRecording = false; clearInterval(recordingInterval); clearInterval(vizInterval);
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+  document.getElementById('record-btn').classList.remove('recording');
+  document.getElementById('audio-status').textContent = '✓ Recording saved — ready to send';
+  document.getElementById('audio-status').className = 'audio-status done';
+  document.getElementById('btn-send-audio').disabled = false;
+  for (let i=1;i<=20;i++){const b=document.getElementById('vb'+i);if(b)b.style.height='4px';}
+}
+function discardRecording() { if (isRecording) stopRecording(); resetAudioModal(); }
+function sendAudio() {
+  const secs = recordingSeconds;
+  const dur = Math.floor(secs/60)+':'+(secs%60<10?'0':'')+secs%60;
+  closeAudioModal();
+  const container = document.getElementById('chat-messages');
+  document.getElementById('empty-state').style.display = 'none';
+  const row = document.createElement('div');
+  row.className = 'message-row user msg-anim';
+  row.innerHTML = '<div class="msg-bubble user" style="display:flex;align-items:center;gap:10px"><span style="font-size:20px">🎙️</span><div><div style="font-size:13px;font-weight:600">Voice recording</div><div style="font-size:11px;opacity:0.7">' + dur + ' · Audio</div></div></div><div class="msg-avatar user-av">K</div>';
+  container.appendChild(row);
+  container.scrollTop = container.scrollHeight;
+  showTyping(container);
+  setTimeout(() => { removeTyping(); addAIMessage(container, "I've received your audio. I'm transcribing it now. Would you like me to <strong>summarise</strong> it, generate <strong>notes</strong>, or create <strong>practice questions</strong> from it?"); }, 1600);
+}
+</script>
+</body>
+</html>
